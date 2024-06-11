@@ -1,0 +1,38 @@
+import re
+from datetime import datetime
+
+def extract_and_parse_date(text):
+    # Define regular expression patterns for different date formats
+    date_patterns = [
+        (r'(\d{2}/\d{2}/\d{4})', "%d/%m/%Y"),
+        (r'(\d{2} \w+ \d{4})', "%d %b %Y"),
+        (r'(\w+ \d{2} \d{4})', "%b %d %Y"),
+        (r'(\d{2}-\d{2}-\d{4})', "%d-%m-%Y"),
+        (r'(\d{4}-\d{2}-\d{2})', "%Y-%m-%d")
+    ]
+
+    for pattern, date_format in date_patterns:
+        match = re.search(pattern, text)
+        if match:
+            date_str = match.group(1)
+            try:
+                date_obj = datetime.strptime(date_str, date_format)
+                formatted_date = date_obj.strftime("%Y-%m-%d")
+                return formatted_date
+            except ValueError:
+                continue
+    
+    return None
+
+# Example usage
+texts = [
+    "batam, 16/01/2023",
+    "event on 24 Jan 2023",
+    "meeting scheduled for May 12 2023",
+    "deadline is 01-02-2024",
+    "ISO date format 2023-05-20"
+]
+
+for text in texts:
+    parsed_date = extract_and_parse_date(text)
+    print(f"Extracted and Parsed Date from '{text}': {parsed_date}")
