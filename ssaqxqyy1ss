@@ -2,8 +2,8 @@ import Levenshtein
 
 # Extended list of values
 values = [
-    'aku', 'nomor rekening', '2000222', 'saldo', '1000000', 'account number', '20009', 'nama', 'bambang', 'alamat', 'jl. kemang', 
-    'kode pos', '12730', 'phone number', '08123456789', 'amount', 'Rp239', 'bank', 'bca', 'email', 'bambang@gmail.com', 'jenis kelamin', 'pria'
+    'aku', 'nomor rekening', '2000222', 'saldo', '1000000', 'nomor rekening', '23444','account number', '20009', 'nama', 'bambang', 'alamat', 'jl. kemang',
+    'nama', 'hartono', 'kode pos', '12730', 'phone number', '08123456789', 'amount', 'Rp239', 'bank', 'bca', 'email', 'bambang@gmail.com', 'jenis kelamin', 'pria'
 ]
 
 # Keywords dictionary
@@ -36,16 +36,17 @@ def find_closest_matches(values, category, threshold_probability=0.8):
         similarities = [(Levenshtein.ratio(value.lower(), normalized_keyword), value) for value in values]
 
         # Filter values based on the threshold probability
-        filtered_values = [value for similarity, value in similarities if similarity >= threshold_probability]
+        filtered_values = [(similarity, value) for similarity, value in similarities if similarity >= threshold_probability]
 
-        # Add the next value after the matched keyword
-        for i, value in enumerate(filtered_values):
-            if value in values and i + 1 < len(values):
-                matched_values.append(values[values.index(value) + 1])
+        # Add the next value after each matched keyword occurrence
+        for similarity, value in filtered_values:
+            idx = values.index(value)
+            if idx + 1 < len(values):
+                # If the next value is not already in matched_values, add it
+                next_value = values[idx + 1]
+                if next_value not in matched_values:
+                    matched_values.append(next_value)
 
-    # Remove duplicates from matched values
-    matched_values = list(dict.fromkeys(matched_values))
-    
     return matched_values
 
 # Find and print the matched values for each category with a specified threshold probability
