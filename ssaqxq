@@ -1,0 +1,61 @@
+import Levenshtein
+
+# List of values
+values = ['aku', 'nomor rekening', '2000222', 'account number', '20009', 'nama', 'bambang']
+
+# Keywords dictionary
+keywords_dict = {
+    'account number': ['no rekening', 'account no'],
+    'name': ['name', 'nama']
+}
+
+def contains_digit(value):
+    return any(char.isdigit() for char in value)
+
+def find_closest_matches(values, category):
+    # Check if the category exists in the keywords dictionary
+    if category not in keywords_dict:
+        return []
+
+    matched_values = []
+
+    # Normalize the values to lower case
+    normalized_values = [value.lower() for value in values]
+
+    # Get the list of keywords for the specified category
+    keywords = keywords_dict[category]
+
+    for keyword in keywords:
+        # Normalize the keyword
+        normalized_keyword = keyword.lower()
+
+        # Find the closest matching phrase in the list
+        closest_match = None
+        min_distance = float('inf')
+
+        for i, value in enumerate(normalized_values):
+            distance = Levenshtein.distance(value, normalized_keyword)
+            if distance < min_distance:
+                min_distance = distance
+                closest_match = i
+
+        # If a closest match is found, find the value near it that matches the criteria
+        if closest_match is not None:
+            # Check the next value if it exists and matches the criteria
+            if closest_match + 1 < len(values) and (contains_digit(values[closest_match + 1]) or not values[closest_match + 1].isdigit()):
+                matched_values.append(values[closest_match + 1])
+            # Check the previous value if it exists and matches the criteria
+            elif closest_match - 1 >= 0 and (contains_digit(values[closest_match - 1]) or not values[closest_match - 1].isdigit()):
+                matched_values.append(values[closest_match - 1])
+
+    # Remove duplicates from matched values
+    matched_values = list(dict.fromkeys(matched_values))
+    
+    return matched_values
+
+# Find and print the matched values
+matched_values_account = find_closest_matches(values, 'account number')
+matched_values_name = find_closest_matches(values, 'name')
+
+print("Account Numbers:", matched_values_account)
+print("Names:", matched_values_name)
