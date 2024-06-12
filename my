@@ -28,27 +28,24 @@ def find_closest_matches(values, category, threshold_probability=0.8):
     # Get the list of keywords for the specified category
     keywords = keywords_dict[category]
 
-    # Current keyword being processed
-    current_keyword = None
+    for keyword in keywords:
+        # Normalize the keyword
+        normalized_keyword = keyword.lower()
 
-    for value in normalized_values:
-        for keyword in keywords:
-            # Compute the similarity ratio
-            similarity = Levenshtein.ratio(value, keyword.lower())
-            
-            # If similarity is above threshold, consider it a match
-            if similarity >= threshold_probability:
-                current_keyword = keyword.lower()
-                break
+        # Compute the similarity ratio for each value
+        similarities = [(Levenshtein.ratio(value.lower(), normalized_keyword), value) for value in values]
 
-        # If the value follows a recognized keyword, add it to matched values
-        if current_keyword:
-            idx = normalized_values.index(value)
-            if idx + 1 < len(normalized_values):
-                matched_values.append(values[idx + 1])
+        # Filter values based on the threshold probability
+        filtered_values = [(similarity, value) for similarity, value in similarities if similarity >= threshold_probability]
 
-            # Reset current_keyword
-            current_keyword = None
+        # Add the values following each matched keyword occurrence
+        for similarity, value in filtered_values:
+            indices = [i for i, v in enumerate(values) if v.lower() == value.lower()]
+            for idx in indices:
+                if idx + 1 < len(values):
+                    matched_value = values[idx + 1]
+                    if matched_value not in matched_values:
+                        matched_values.append(matched_value)
 
     return matched_values
 
