@@ -9,25 +9,33 @@ keywords = ['no rekening', 'account no']
 def find_closest_matches(values, keywords):
     matched_values = []
     
+    # Normalize the values to lower case
+    normalized_values = [value.lower() for value in values]
+    
     for keyword in keywords:
-        # Normalize keyword
+        # Normalize the keyword
         normalized_keyword = keyword.lower()
         
         # Find the closest matching phrase in the list
         closest_match = None
         min_distance = float('inf')
         
-        for value in values:
-            normalized_value = value.lower()
-            distance = Levenshtein.distance(normalized_value, normalized_keyword)
+        for value in normalized_values:
+            distance = Levenshtein.distance(value, normalized_keyword)
             if distance < min_distance:
                 min_distance = distance
                 closest_match = value
         
         # If a closest match is found, find the numeric value near it
         if closest_match:
-            closest_index = values.index(closest_match)
-            if closest_index + 1 < len(values) and values[closest_index + 1].isnumeric():
+            closest_index = normalized_values.index(closest_match)
+            
+            # Check the values around the closest match for numeric values
+            # Check the previous value if it exists
+            if closest_index > 0 and values[closest_index - 1].isnumeric():
+                matched_values.append(values[closest_index - 1])
+            # Check the next value if it exists
+            elif closest_index + 1 < len(values) and values[closest_index + 1].isnumeric():
                 matched_values.append(values[closest_index + 1])
     
     return matched_values
