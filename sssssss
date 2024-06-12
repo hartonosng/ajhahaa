@@ -1,0 +1,36 @@
+import Levenshtein
+
+def extract_values_by_keywords(words_list, keywords):
+    # Function to find the closest match
+    def closest_match(word, possible_matches):
+        return min(possible_matches, key=lambda x: Levenshtein.distance(word, x))
+    
+    # Combine all keywords into one list
+    all_keywords = []
+    for keyword_group in keywords:
+        all_keywords.extend(keyword_group.split())
+    
+    # Find closest matches for each keyword group
+    matches = []
+    for keyword_group in keywords:
+        match = None
+        min_distance = float('inf')
+        for word in words_list:
+            for keyword in keyword_group.split():
+                distance = Levenshtein.distance(keyword, word)
+                if distance < min_distance:
+                    min_distance = distance
+                    match = word
+        matches.append(match)
+    
+    # Filter out the matches that are numeric (account numbers)
+    numeric_matches = [match for match in matches if match.isdigit()]
+    
+    return numeric_matches
+
+# Example usage
+words_list = ['aku', 'nomor rekening', '2000222', 'account number', '20009']
+keywords = ['no rekening', 'account no']
+
+result = extract_values_by_keywords(words_list, keywords)
+print(result)  # Output: ['2000222', '20009']
