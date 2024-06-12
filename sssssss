@@ -1,4 +1,4 @@
-import difflib
+import Levenshtein
 
 # List of values
 values = ['aku', 'nomor rekening', '2000222', 'account number', '20009']
@@ -7,23 +7,28 @@ values = ['aku', 'nomor rekening', '2000222', 'account number', '20009']
 keywords = ['no rekening', 'account no']
 
 def find_closest_matches(values, keywords):
-    # Normalize keywords by removing spaces and converting to lower case
-    normalized_keywords = [keyword.replace(' ', '').lower() for keyword in keywords]
-
-    # List to store matched values
     matched_values = []
-
-    for value in values:
-        # Normalize value
-        normalized_value = value.replace(' ', '').lower()
+    
+    for keyword in keywords:
+        # Normalize keyword
+        normalized_keyword = keyword.lower()
         
-        # Calculate closest match using difflib
-        closest_match = difflib.get_close_matches(normalized_value, normalized_keywords, n=1, cutoff=0.6)
+        # Find the closest matching phrase in the list
+        closest_match = None
+        min_distance = float('inf')
         
+        for value in values:
+            normalized_value = value.lower()
+            distance = Levenshtein.distance(normalized_value, normalized_keyword)
+            if distance < min_distance:
+                min_distance = distance
+                closest_match = value
+        
+        # If a closest match is found, find the numeric value near it
         if closest_match:
-            # If a match is found, check if the value is numeric and add to matched values
-            if value.isnumeric():
-                matched_values.append(value)
+            closest_index = values.index(closest_match)
+            if closest_index + 1 < len(values) and values[closest_index + 1].isnumeric():
+                matched_values.append(values[closest_index + 1])
     
     return matched_values
 
