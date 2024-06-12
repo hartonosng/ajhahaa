@@ -1,0 +1,49 @@
+import Levenshtein
+
+# List of values
+values = ['aku', 'nomor rekening', '2000222', 'account number', '20009', 'nama', 'bambang']
+
+# Keywords dictionary
+keywords_dict = {
+    'account number': ['no rekening', 'account no'],
+    'name': ['name', 'nama']
+}
+
+def contains_digit(value):
+    return any(char.isdigit() for char in value)
+
+def find_closest_matches(values, keywords_dict):
+    matched_values = {key: [] for key in keywords_dict}
+
+    # Normalize the values to lower case
+    normalized_values = [value.lower() for value in values]
+
+    for category, keywords in keywords_dict.items():
+        for keyword in keywords:
+            # Normalize the keyword
+            normalized_keyword = keyword.lower()
+
+            # Find the closest matching phrase in the list
+            closest_match = None
+            min_distance = float('inf')
+
+            for i, value in enumerate(normalized_values):
+                distance = Levenshtein.distance(value, normalized_keyword)
+                if distance < min_distance:
+                    min_distance = distance
+                    closest_match = i
+
+            # If a closest match is found, find the value near it that matches the criteria
+            if closest_match is not None:
+                # Check the next value if it exists and matches the criteria
+                if closest_match + 1 < len(values) and (contains_digit(values[closest_match + 1]) or not values[closest_match + 1].isdigit()):
+                    matched_values[category].append(values[closest_match + 1])
+                # Check the previous value if it exists and matches the criteria
+                elif closest_match - 1 >= 0 and (contains_digit(values[closest_match - 1]) or not values[closest_match - 1].isdigit()):
+                    matched_values[category].append(values[closest_match - 1])
+
+    return matched_values
+
+# Find and print the matched values
+matched_values = find_closest_matches(values, keywords_dict)
+print(matched_values)
