@@ -1,36 +1,32 @@
-import Levenshtein
+import difflib
 
-def extract_values_by_keywords(words_list, keywords):
-    # Function to find the closest match
-    def closest_match(word, possible_matches):
-        return min(possible_matches, key=lambda x: Levenshtein.distance(word, x))
-    
-    # Combine all keywords into one list
-    all_keywords = []
-    for keyword_group in keywords:
-        all_keywords.extend(keyword_group.split())
-    
-    # Find closest matches for each keyword group
-    matches = []
-    for keyword_group in keywords:
-        match = None
-        min_distance = float('inf')
-        for word in words_list:
-            for keyword in keyword_group.split():
-                distance = Levenshtein.distance(keyword, word)
-                if distance < min_distance:
-                    min_distance = distance
-                    match = word
-        matches.append(match)
-    
-    # Filter out the matches that are numeric (account numbers)
-    numeric_matches = [match for match in matches if match.isdigit()]
-    
-    return numeric_matches
+# List of values
+values = ['aku', 'nomor rekening', '2000222', 'account number', '20009']
 
-# Example usage
-words_list = ['aku', 'nomor rekening', '2000222', 'account number', '20009']
+# Keywords to match
 keywords = ['no rekening', 'account no']
 
-result = extract_values_by_keywords(words_list, keywords)
-print(result)  # Output: ['2000222', '20009']
+def find_closest_matches(values, keywords):
+    # Normalize keywords by removing spaces and converting to lower case
+    normalized_keywords = [keyword.replace(' ', '').lower() for keyword in keywords]
+
+    # List to store matched values
+    matched_values = []
+
+    for value in values:
+        # Normalize value
+        normalized_value = value.replace(' ', '').lower()
+        
+        # Calculate closest match using difflib
+        closest_match = difflib.get_close_matches(normalized_value, normalized_keywords, n=1, cutoff=0.6)
+        
+        if closest_match:
+            # If a match is found, check if the value is numeric and add to matched values
+            if value.isnumeric():
+                matched_values.append(value)
+    
+    return matched_values
+
+# Find and print the matched values
+matched_values = find_closest_matches(values, keywords)
+print(matched_values)
