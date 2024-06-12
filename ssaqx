@@ -12,13 +12,17 @@ keywords_dict = {
 def contains_digit(value):
     return any(char.isdigit() for char in value)
 
-def find_closest_matches(values, keywords_dict):
-    matched_values = {key: [] for key in keywords_dict}
+def find_closest_matches(values, category):
+    # Check if the category exists in the keywords dictionary
+    if category in keywords_dict:
+        matched_values = []
 
-    # Normalize the values to lower case
-    normalized_values = [value.lower() for value in values]
+        # Normalize the values to lower case
+        normalized_values = [value.lower() for value in values]
 
-    for category, keywords in keywords_dict.items():
+        # Get the list of keywords for the specified category
+        keywords = keywords_dict[category]
+
         for keyword in keywords:
             # Normalize the keyword
             normalized_keyword = keyword.lower()
@@ -37,13 +41,18 @@ def find_closest_matches(values, keywords_dict):
             if closest_match is not None:
                 # Check the next value if it exists and matches the criteria
                 if closest_match + 1 < len(values) and (contains_digit(values[closest_match + 1]) or not values[closest_match + 1].isdigit()):
-                    matched_values[category].append(values[closest_match + 1])
+                    matched_values.append(values[closest_match + 1])
                 # Check the previous value if it exists and matches the criteria
                 elif closest_match - 1 >= 0 and (contains_digit(values[closest_match - 1]) or not values[closest_match - 1].isdigit()):
-                    matched_values[category].append(values[closest_match - 1])
+                    matched_values.append(values[closest_match - 1])
 
-    return matched_values
+        return matched_values
+    else:
+        return []
 
 # Find and print the matched values
-matched_values = find_closest_matches(values, keywords_dict)
-print(matched_values)
+matched_values_account = find_closest_matches(values, 'account number')
+matched_values_name = find_closest_matches(values, 'name')
+
+print("Account Numbers:", matched_values_account)
+print("Names:", matched_values_name)
