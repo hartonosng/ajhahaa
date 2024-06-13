@@ -2,7 +2,7 @@ import Levenshtein
 
 # Extended list of values
 values = [
-    'aku', 'nomor rekening', '2000222', 'saldo', '1000000', 'nomor rekening', '23444','account number', '20009', 'nama', 'bambang', 'alamat', 'jl. kemang',
+    'aku', 'nomor rekening', '2000222', 'saldo', '1000000', 'nomor rekening', '23444', 'account number', '20009', 'nama', 'bambang', 'alamat', 'jl. kemang',
     'nama', 'hartono', 'kode pos', '12730', 'phone number', '08123456789', 'amount', 'Rp239', 'bank', 'bca', 'email', 'bambang@gmail.com', 'jenis kelamin', 'pria'
 ]
 
@@ -44,8 +44,7 @@ def find_closest_matches(values, category, threshold_probability=0.8):
             for idx in indices:
                 if idx + 1 < len(values):
                     matched_value = values[idx + 1]
-                    if matched_value not in matched_values:
-                        matched_values.append(matched_value)
+                    matched_values.append(matched_value)
 
     return matched_values
 
