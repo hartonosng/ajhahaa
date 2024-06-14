@@ -1,0 +1,32 @@
+import json
+
+def convert_int_to_str(data):
+    if isinstance(data, dict):
+        return {k: convert_int_to_str(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [convert_int_to_str(item) for item in data]
+    elif isinstance(data, int):
+        return str(data)
+    else:
+        return data
+
+# Contoh JSON
+json_data = '''
+{
+    "id": 1,
+    "name": "Alice",
+    "age": 25,
+    "score": 88,
+    "passed": true
+}
+'''
+
+# Parse JSON
+data = json.loads(json_data)
+
+# Konversi integer menjadi string
+converted_data = convert_int_to_str(data)
+
+# Dump kembali ke JSON string
+converted_json_data = json.dumps(converted_data, indent=4)
+print(converted_json_data)
