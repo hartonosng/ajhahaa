@@ -4,6 +4,11 @@ from PIL import Image
 import torch
 
 def load_image_from_base64(base64_string, input_size=448, max_num=6):
+    # Fix incorrect padding
+    padding_needed = 4 - (len(base64_string) % 4)
+    if padding_needed:
+        base64_string += "=" * padding_needed
+    
     # Decode the base64 string into bytes
     image_data = base64.b64decode(base64_string)
     
