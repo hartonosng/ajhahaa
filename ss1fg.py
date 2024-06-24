@@ -2,7 +2,7 @@
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LogisticRegression
+from xgboost import XGBClassifier
 from sklearn.metrics import classification_report, confusion_matrix
 
 # Misalkan kita memiliki dataset dalam bentuk dataframe
@@ -31,8 +31,13 @@ scaler = StandardScaler()
 X_train_scaled = scaler.fit_transform(X_train)
 X_test_scaled = scaler.transform(X_test)
 
-# Melatih model Logistic Regression
-model = LogisticRegression()
+# Menghitung bobot untuk balancing kelas
+# Misalnya, untuk balancing secara manual bisa dihitung sebagai berikut:
+# weight_bad = len(y_train[y_train == 0]) / len(y_train[y_train == 1])
+# weights = [weight_bad if label == 1 else 1 for label in y_train]
+
+# Menggunakan XGBoost dengan balancing kelas
+model = XGBClassifier(scale_pos_weight=len(y_train[y_train == 0]) / len(y_train[y_train == 1]))
 model.fit(X_train_scaled, y_train)
 
 # Memprediksi label untuk data uji
