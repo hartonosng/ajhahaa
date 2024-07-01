@@ -1,6 +1,4 @@
 import pandas as pd
-import numpy as np
-from sklearn.metrics import recall_score, precision_score
 from sklearn.preprocessing import KBinsDiscretizer
 
 # Sample data
@@ -22,7 +20,7 @@ df['label'] = df['label'].map({'good': 0, 'bad': 1})
 numeric_features = ['numeric_feature1', 'numeric_feature2']
 categorical_features = ['categorical_feature1', 'categorical_feature2', 'categorical_feature3']
 
-# Bin numeric features and get bin intervals
+# Bin numeric features into 2 categories
 def bin_numeric_features(df, numeric_features, bins=2, strategy='uniform'):
     bin_intervals = {}
     for feature in numeric_features:
@@ -46,20 +44,21 @@ def calculate_metrics(df, features, label):
         # Create crosstab with frequency
         crosstab_freq = pd.crosstab(df[feature], df[label], margins=True, margins_name='Total')
         
-        # Calculate recall and precision based on frequency
+        # Calculate recall, precision, and TN based on frequency
         if 'Total' in crosstab_freq.index:
             total_instances = crosstab_freq.loc['Total', 'Total']
-            true_positives = crosstab_freq.loc[1, 1] if 1 in crosstab_freq.index else 0  # Predicted 1 (bad) and actually 1 (bad)
-            false_negatives = crosstab_freq.loc[1, 0] if 1 in crosstab_freq.index else 0  # Predicted 1 (bad) but actually 0 (good)
-            false_positives = crosstab_freq.loc[0, 1] if 0 in crosstab_freq.index else 0  # Predicted 0 (good) but actually 1 (bad)
+            TP = crosstab_freq.loc[1, 1] if 1 in crosstab_freq.index else 0  # True Positives (predicted 1, actual 1)
+            FN = crosstab_freq.loc[1, 0] if 1 in crosstab_freq.index else 0  # False Negatives (predicted 1, actual 0)
+            FP = crosstab_freq.loc[0, 1] if 0 in crosstab_freq.index else 0  # False Positives (predicted 0, actual 1)
+            TN = crosstab_freq.loc[0, 0] if 0 in crosstab_freq.index else 0  # True Negatives (predicted 0, actual 0)
             
-            if true_positives + false_negatives > 0:
-                recall = true_positives / (true_positives + false_negatives)
+            if TP + FN > 0:
+                recall = TP / (TP + FN)
             else:
                 recall = 0.0
             
-            if true_positives + false_positives > 0:
-                precision = true_positives / (true_positives + false_positives)
+            if TP + FP > 0:
+                precision = TP / (TP + FP)
             else:
                 precision = 0.0
         else:
