@@ -23,7 +23,7 @@ numeric_features = ['numeric_feature1', 'numeric_feature2']
 categorical_features = ['categorical_feature1', 'categorical_feature2', 'categorical_feature3']
 
 # Bin numeric features and get bin intervals
-def bin_numeric_features(df, numeric_features, bins=4, strategy='uniform'):
+def bin_numeric_features(df, numeric_features, bins=2, strategy='uniform'):
     bin_intervals = {}
     for feature in numeric_features:
         est = KBinsDiscretizer(n_bins=bins, encode='ordinal', strategy=strategy)
@@ -34,39 +34,43 @@ def bin_numeric_features(df, numeric_features, bins=4, strategy='uniform'):
 
 df, bin_intervals = bin_numeric_features(df, numeric_features)
 
-# Function to calculate recall and precision for each feature
+# Combine binned numeric and categorical features
+all_features = [feature + '_binned' for feature in numeric_features] + categorical_features
+
+# Function to calculate recall and precision for each feature based on frequency
 def calculate_metrics(df, features, label):
     results = {}
     crosstabs = {}
     
     for feature in features:
         # Create crosstab with frequency
-        crosstab_freq = pd.crosstab(df[feature], df[label])
+        crosstab_freq = pd.crosstab(df[feature], df[label], margins=True, margins_name='Total')
         
-        # Create crosstab with percentages
-        crosstab_percentage = pd.crosstab(df[feature], df[label], normalize='index').apply(lambda r: r * 100, axis=1)
-        
-        # Combine frequency and percentage into a multi-level dataframe
-        crosstab_combined = pd.concat([crosstab_freq, crosstab_percentage], axis=1, keys=['Frequency', 'Percentage'])
-        crosstabs[feature] = crosstab_combined
-        
-        # Predict the majority class for each category
-        majority_class_predictions = crosstab_freq.idxmax(axis=1).map(lambda x: 1 if x == 1 else 0)
-        
-        # Map predictions back to the original data
-        predictions = df[feature].map(majority_class_predictions)
-        
-        # Calculate recall and precision
-        recall = recall_score(df[label], predictions, zero_division=0)
-        precision = precision_score(df[label], predictions, zero_division=0)
+        # Calculate recall and precision based on frequency
+        if 'Total' in crosstab_freq.index:
+            total_instances = crosstab_freq.loc['Total', 'Total']
+            true_positives = crosstab_freq.loc[1, 1] if 1 in crosstab_freq.index else 0  # Predicted 1 (bad) and actually 1 (bad)
+            false_negatives = crosstab_freq.loc[1, 0] if 1 in crosstab_freq.index else 0  # Predicted 1 (bad) but actually 0 (good)
+            false_positives = crosstab_freq.loc[0, 1] if 0 in crosstab_freq.index else 0  # Predicted 0 (good) but actually 1 (bad)
+            
+            if true_positives + false_negatives > 0:
+                recall = true_positives / (true_positives + false_negatives)
+            else:
+                recall = 0.0
+            
+            if true_positives + false_positives > 0:
+                precision = true_positives / (true_positives + false_positives)
+            else:
+                precision = 0.0
+        else:
+            recall = 0.0
+            precision = 0.0
         
         # Store results
         results[feature] = {'recall': recall, 'precision': precision}
-    
+        crosstabs[feature] = crosstab_freq
+        
     return results, crosstabs
-
-# Combine binned numeric and categorical features
-all_features = [feature + '_binned' for feature in numeric_features] + categorical_features
 
 # Calculate metrics and get crosstabs
 metrics, crosstabs = calculate_metrics(df, all_features, 'label')
