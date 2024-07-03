@@ -1,92 +1,62 @@
-import pandas as pd
-from sklearn.preprocessing import KBinsDiscretizer
+import Levenshtein
 
-# Sample data
-data = {
-    'numeric_feature1': [100, 200, 150, 250, 300, 350, 400, 450],
-    'numeric_feature2': [10, 20, 15, 25, 30, 35, 40, 45],
-    'categorical_feature1': ['A', 'B', 'C', 'A', 'B', 'C', 'A', 'B'],
-    'categorical_feature2': ['X', 'Y', 'X', 'Y', 'X', 'Y', 'X', 'Y'],
-    'categorical_feature3': ['M', 'N', 'M', 'N', 'M', 'N', 'M', 'N'],
-    'label': ['good', 'bad', 'good', 'bad', 'bad', 'good', 'bad', 'good']
+# Extended list of values
+values = [
+    'aku', 'nomor rekening', '2000222', 'saldo', '1000000', 'nomor rekening', '23444', 'account number', '20009', 'nama', 'bambang', 'alamat', 'jl. kemang',
+    'nama', 'hartono', 'kode pos', '12730', 'phone number', '08123456789', 'amount', 'Rp239', 'bank', 'bca', 'email', 'bambang@gmail.com', 'jenis kelamin', 'pria'
+]
+
+# Keywords dictionary
+keywords_dict = {
+    'account number': ['no rekening', 'account no'],
+    'name': ['name', 'nama'],
+    'amount': ['amount'],
+    'phone number': ['phone number', 'no hp'],
+    'email': ['email', 'e-mail']
 }
 
-df = pd.DataFrame(data)
+def find_closest_matches(values, category, threshold_probability=0.8):
+    # Check if the category exists in the keywords dictionary
+    if category not in keywords_dict:
+        return []
 
-# Convert label to binary for calculation
-df['label'] = df['label'].map({'good': 0, 'bad': 1})
+    matched_values = []
 
-# List of features to analyze
-numeric_features = ['numeric_feature1', 'numeric_feature2']
-categorical_features = ['categorical_feature1', 'categorical_feature2', 'categorical_feature3']
+    # Normalize the values to lower case
+    normalized_values = [value.lower() for value in values]
 
-# Bin numeric features into 2 categories
-def bin_numeric_features(df, numeric_features, bins=2, strategy='uniform'):
-    bin_intervals = {}
-    for feature in numeric_features:
-        est = KBinsDiscretizer(n_bins=bins, encode='ordinal', strategy=strategy)
-        df[feature + '_binned'] = est.fit_transform(df[[feature]]).astype(int)
-        bin_edges = est.bin_edges_[0]
-        bin_intervals[feature] = [(bin_edges[i], bin_edges[i+1]) for i in range(len(bin_edges) - 1)]
-    return df, bin_intervals
+    # Get the list of keywords for the specified category
+    keywords = keywords_dict[category]
 
-df, bin_intervals = bin_numeric_features(df, numeric_features)
+    for keyword in keywords:
+        # Normalize the keyword
+        normalized_keyword = keyword.lower()
 
-# Combine binned numeric and categorical features
-all_features = [feature + '_binned' for feature in numeric_features] + categorical_features
+        # Compute the similarity ratio for each value
+        similarities = [(Levenshtein.ratio(value.lower(), normalized_keyword), value) for value in values]
 
-# Function to calculate recall and precision for each feature based on frequency
-def calculate_metrics(df, features, label):
-    results = {}
-    crosstabs = {}
-    
-    for feature in features:
-        # Create crosstab with frequency
-        crosstab_freq = pd.crosstab(df[feature], df[label], margins=True, margins_name='Total')
-        
-        # Calculate recall, precision, and TN based on frequency
-        if 'Total' in crosstab_freq.index:
-            total_instances = crosstab_freq.loc['Total', 'Total']
-            TP = crosstab_freq.loc[1, 1] if 1 in crosstab_freq.index else 0  # True Positives (predicted 1, actual 1)
-            FN = crosstab_freq.loc[1, 0] if 1 in crosstab_freq.index else 0  # False Negatives (predicted 1, actual 0)
-            FP = crosstab_freq.loc[0, 1] if 0 in crosstab_freq.index else 0  # False Positives (predicted 0, actual 1)
-            TN = crosstab_freq.loc[0, 0] if 0 in crosstab_freq.index else 0  # True Negatives (predicted 0, actual 0)
-            
-            if TP + FN > 0:
-                recall = TP / (TP + FN)
-            else:
-                recall = 0.0
-            
-            if TP + FP > 0:
-                precision = TP / (TP + FP)
-            else:
-                precision = 0.0
-        else:
-            recall = 0.0
-            precision = 0.0
-        
-        # Store results
-        results[feature] = {'recall': recall, 'precision': precision}
-        crosstabs[feature] = crosstab_freq
-        
-    return results, crosstabs
+        # Filter values based on the threshold probability
+        filtered_values = [(similarity, value) for similarity, value in similarities if similarity >= threshold_probability]
 
-# Calculate metrics and get crosstabs
-metrics, crosstabs = calculate_metrics(df, all_features, 'label')
+        # Add the values following each matched keyword occurrence
+        for similarity, value in filtered_values:
+            indices = [i for i, v in enumerate(values) if v.lower() == value.lower()]
+            for idx in indices:
+                if idx + 1 < len(values):
+                    matched_value = values[idx + 1]
+                    matched_values.append(matched_value)
 
-# Display bin intervals
-for feature, intervals in bin_intervals.items():
-    print(f"Bin intervals for {feature}:")
-    for i, interval in enumerate(intervals):
-        print(f"  Bin {i}: {interval[0]:.2f} to {interval[1]:.2f}")
-    print()
+    return matched_values
 
-# Display the results
-for feature, scores in metrics.items():
-    print(f"Feature: {feature}")
-    print(f"Recall: {scores['recall']:.2f}")
-    print(f"Precision: {scores['precision']:.2f}\n")
+# Find and print the matched values for each category with a specified threshold probability
+matched_values_account = find_closest_matches(values, 'account number', threshold_probability=0.8)
+matched_values_name = find_closest_matches(values, 'name', threshold_probability=0.8)
+matched_values_amount = find_closest_matches(values, 'amount', threshold_probability=0.8)
+matched_values_phone = find_closest_matches(values, 'phone number', threshold_probability=0.8)
+matched_values_email = find_closest_matches(values, 'email', threshold_probability=0.8)
 
-# Display crosstabs as dataframes
-for feature, crosstab in crosstabs.items():
-    print(f"Crosstab for {feature}:\n{crosstab}\n")
+print("Account Numbers:", matched_values_account)
+print("Names:", matched_values_name)
+print("Amounts:", matched_values_amount)
+print("Phone Numbers:", matched_values_phone)
+print("Emails:", matched_values_email)
