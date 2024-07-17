@@ -14,6 +14,25 @@ def convert_to_spark(df, schema):
     spark_df = spark.createDataFrame(df, schema=schema)
     return spark_df
 
+# Fungsi untuk mengenerate skema SQL
+def generate_sql_schema(table_name, schema):
+    sql = f"CREATE TABLE {table_name} (\n"
+    for field in schema.fields:
+        if isinstance(field.dataType, StringType):
+            sql_type = "VARCHAR(255)"
+        elif isinstance(field.dataType, IntegerType):
+            sql_type = "INT"
+        elif isinstance(field.dataType, FloatType):
+            sql_type = "FLOAT"
+        elif isinstance(field.dataType, DateType):
+            sql_type = "DATE"
+        else:
+            sql_type = "VARCHAR(255)"  # Default type
+        
+        sql += f"  {field.name} {sql_type},\n"
+    sql = sql.rstrip(",\n") + "\n);"  # Remove trailing comma and add closing parenthesis
+    return sql
+
 # Judul aplikasi
 st.title("Aplikasi Unggah File Excel atau CSV")
 
@@ -57,6 +76,12 @@ if uploaded_file is not None:
         
         # Meminta pengguna untuk memasukkan nama tabel
         table_name = st.text_input("Masukkan nama tabel untuk mengunggah data:")
+        
+        if table_name:
+            # Generate SQL schema
+            sql_schema = generate_sql_schema(table_name, spark_schema)
+            st.write("Berikut adalah skema SQL yang dihasilkan:")
+            st.code(sql_schema, language='sql')
         
         # Push to database
         if st.button("Unggah ke Database"):
