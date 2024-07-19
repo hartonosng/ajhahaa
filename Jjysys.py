@@ -1,105 +1,65 @@
-import streamlit as st
-import pandas as pd
-from pyspark.sql import SparkSession
-from pyspark.sql.types import *
+import openai
+from langchain.prompts import ChatPromptTemplate
+from langchain.chains import LLMChain
+from langchain.llms import OpenAI
+from langchain.runnables import Runnable
 
-# Inisialisasi SparkSession
-spark = SparkSession.builder \
-    .appName("Streamlit App") \
-    .config("spark.driver.memory", "2g") \
-    .getOrCreate()
+# Initialize OpenAI
+openai.api_key = 'your-openai-api-key'
 
-# Fungsi untuk mengonversi pandas DataFrame ke Spark DataFrame dengan skema yang ditentukan
-def convert_to_spark(df, schema):
-    spark_df = spark.createDataFrame(df, schema=schema)
-    return spark_df
+# Define the schema
+details_schema = {
+    "type": "object",
+    "properties": {
+        "Name": {"type": "string"},
+        "Age": {"type": "integer"},
+        "Occupation": {"type": "string"}
+    },
+    "required": ["Name", "Age", "Occupation"]
+}
 
-# Fungsi untuk mengenerate skema SQL
-def generate_sql_schema(table_name, schema):
-    sql = f"CREATE TABLE {table_name} (\n"
-    for field in schema.fields:
-        if isinstance(field.dataType, StringType):
-            sql_type = "VARCHAR(255)"
-        elif isinstance(field.dataType, IntegerType):
-            sql_type = "INT"
-        elif isinstance(field.dataType, FloatType):
-            sql_type = "FLOAT"
-        elif isinstance(field.dataType, DateType):
-            sql_type = "DATE"
-        else:
-            sql_type = "VARCHAR(255)"  # Default type
-        
-        sql += f"  {field.name} {sql_type},\n"
-    sql = sql.rstrip(",\n") + "\n);"  # Remove trailing comma and add closing parenthesis
-    return sql
+# Define the ChatPromptTemplate with a specific schema
+template = ChatPromptTemplate.from_messages(
+    [
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": "Please provide the following information: Name, Age, and Occupation for {input_text}."},
+        {"role": "assistant", "content": """{
+            "Name": "",
+            "Age": "",
+            "Occupation": ""
+        }"""}
+    ]
+)
 
-# Judul aplikasi
-st.title("Aplikasi Unggah File Excel atau CSV")
+# Create an LLMChain with OpenAI
+llm = OpenAI(model="text-davinci-003", openai_api_key=openai.api_key)
+chain = LLMChain(llm=llm, prompt=template)
 
-# Unggah file
-uploaded_file = st.file_uploader("Pilih file Excel atau CSV", type=["xlsx", "xls", "csv"])
+# Define a function to use runnable.invoke for more flexibility
+class OpenAIInvoker(Runnable):
+    def __init__(self, chain):
+        self.chain = chain
 
-if uploaded_file is not None:
+    def invoke(self, input_text):
+        return self.chain.run(input_text=input_text)
+
+# Create an instance of the invoker with the chain
+invoker = OpenAIInvoker(chain=chain)
+
+# Define a prompt
+prompt = "Tell me about John Doe."
+
+# Get the structured output using runnable.invoke
+response = invoker.invoke(prompt)
+
+# Function to parse JSON output
+def parse_json_response(response):
+    import json
     try:
-        # Memeriksa jenis file dan membaca isinya
-        if uploaded_file.name.endswith('.csv'):
-            df = pd.read_csv(uploaded_file)
-        else:
-            df = pd.read_excel(uploaded_file)
-        
-        # Menampilkan isi file
-        st.write("Berikut adalah isi file yang diunggah:")
-        st.write(df)
-        
-        # Meminta pengguna untuk mendefinisikan skema untuk setiap kolom
-        st.write("Definisikan skema untuk setiap kolom:")
-        schema = []
-        for col in df.columns:
-            col_type = st.selectbox(f"Pilih tipe data untuk kolom {col}", options=['String', 'Integer', 'Float', 'Date'])
-            if col_type == 'String':
-                schema.append(StructField(col, StringType(), True))
-            elif col_type == 'Integer':
-                schema.append(StructField(col, IntegerType(), True))
-            elif col_type == 'Float':
-                schema.append(StructField(col, FloatType(), True))
-            elif col_type == 'Date':
-                schema.append(StructField(col, DateType(), True))
-        
-        spark_schema = StructType(schema)
-        
-        # Mengonversi pandas DataFrame ke Spark DataFrame
-        spark_df = convert_to_spark(df, spark_schema)
-        
-        # Menampilkan Spark DataFrame
-        st.write("Berikut adalah Spark DataFrame:")
-        st.write(spark_df.show())
-        
-        # Meminta pengguna untuk memasukkan nama tabel
-        table_name = st.text_input("Masukkan nama tabel untuk mengunggah data:")
-        
-        if table_name:
-            # Generate SQL schema
-            sql_schema = generate_sql_schema(table_name, spark_schema)
-            st.write("Berikut adalah skema SQL yang dihasilkan:")
-            st.code(sql_schema, language='sql')
-        
-        # Push to database
-        if st.button("Unggah ke Database"):
-            if table_name:
-                # Konfigurasi koneksi database
-                db_url = "jdbc:your_database_url"
-                db_properties = {
-                    "user": "your_username",
-                    "password": "your_password",
-                    "driver": "your_database_driver"
-                }
-                
-                # Menyimpan DataFrame ke database
-                spark_df.write.jdbc(url=db_url, table=table_name, mode='append', properties=db_properties)
-                st.success("Data berhasil diunggah ke database!")
-            else:
-                st.error("Nama tabel tidak boleh kosong.")
-    except Exception as e:
-        st.error(f"Terjadi kesalahan saat membaca file: {e}")
-else:
-    st.write("Silakan unggah file untuk melihat isinya.")
+        return json.loads(response)
+    except json.JSONDecodeError:
+        return {"error": "Failed to parse JSON response"}
+
+structured_output = parse_json_response(response)
+
+print(structured_output)
