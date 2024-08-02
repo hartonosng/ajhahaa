@@ -1,32 +1,65 @@
-import cv2
-import numpy as np
+import streamlit as st
+import pandas as pd
 
-def resize_image(input_path, output_path, target_width, target_height):
-    # Read the image using cv2
-    img = cv2.imread(input_path)
-    # Get original dimensions
-    original_height, original_width = img.shape[:2]
-    # Calculate the scaling factor to maintain the resolution
-    scaling_factor = min(target_width / original_width, target_height / original_height)
-    # Calculate the new dimensions
-    new_width = int(original_width * scaling_factor)
-    new_height = int(original_height * scaling_factor)
-    # Resize the image
-    resized_img = cv2.resize(img, (new_width, new_height), interpolation=cv2.INTER_LANCZOS4)
-    # Create a new blank image with the target dimensions
-    final_img = np.full((target_height, target_width, 3), 255, dtype=np.uint8)
-    # Calculate position to paste the resized image to center it
-    x_offset = (target_width - new_width) // 2
-    y_offset = (target_height - new_height) // 2
-    # Paste the resized image onto the blank image
-    final_img[y_offset:y_offset + new_height, x_offset:x_offset + new_width] = resized_img
-    # Save the image
-    cv2.imwrite(output_path, final_img)
+# Contoh data
+data = pd.DataFrame({
+    'customerid': [1, 2, 3],
+    'customername': ['Customer A', 'Customer B', 'Customer C']
+})
 
-# Example usage
-input_path = 'path/to/your/document_page.png'
-output_path = 'path/to/save/resized_image.png'
-target_width = 800  # Desired width
-target_height = 1000  # Desired height
+def show_company_level_summary(customer_id):
+    st.title("Company Level Summary")
+    customer_info = data[data['customerid'] == customer_id]
+    st.write(f"Detail untuk Customer ID: {customer_id}")
+    st.dataframe(customer_info)
 
-resize_image(input_path, output_path, target_width, target_height)
+def general_summary():
+    st.title("General Summary")
+    
+    # Mengkonversi dataframe menjadi HTML dengan tombol
+    html = data.to_html(classes='table table-striped', escape=False)
+    
+    # Menambahkan tombol ke HTML
+    html = html.replace('<table', '<table id="data-table"')
+    html = html.replace('</tbody>', '''
+    </tbody>
+    <script>
+    const buttons = document.querySelectorAll('.view-details');
+    buttons.forEach(button => {
+        button.addEventListener('click', () => {
+            const customerId = button.getAttribute('data-customerid');
+            window.location.href = `?action=select&id=${customerId}`;
+        });
+    });
+    </script>
+    ''')
+    
+    # Menambahkan tombol di setiap baris
+    for index, row in data.iterrows():
+        html = html.replace(f'<td>{row["customerid"]}</td>', f'<td>{row["customerid"]} <button class="view-details" data-customerid="{row["customerid"]}">Lihat Detail</button></td>')
+    
+    # Menampilkan HTML
+    st.markdown(html, unsafe_allow_html=True)
+    
+    # Mengambil customer_id dari query parameter
+    if 'action' in st.experimental_get_query_params() and st.experimental_get_query_params()['action'][0] == 'select':
+        customer_id = st.experimental_get_query_params()['id'][0]
+        st.session_state['selected_customerid'] = customer_id
+        st.experimental_rerun()
+
+def main():
+    st.sidebar.title("Menu")
+    selection = st.sidebar.radio("Pilih Halaman", ["General Summary", "Company Level Summary"])
+
+    if selection == "General Summary":
+        general_summary()
+    elif selection == "Company Level Summary":
+        if 'selected_customerid' in st.session_state:
+            show_company_level_summary(st.session_state['selected_customerid'])
+        else:
+            st.write("Pilih customer ID dari General Summary.")
+
+if __name__ == "__main__":
+    main()
+
+
