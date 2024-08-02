@@ -1,0 +1,42 @@
+import streamlit as st
+import pandas as pd
+from streamlit_option_menu import option_menu
+
+# Sample DataFrame
+data = pd.DataFrame({
+    'customerid': [101, 102, 103],
+    'customername': ['Alice', 'Bob', 'Charlie']
+})
+
+# Function to navigate to Company Level Summary
+def show_company_level_summary(customer_id):
+    st.session_state.customer_id = customer_id
+    st.write(f"Showing Company Level Summary for Customer ID: {customer_id}")
+
+# Main app
+def main():
+    # Sidebar option menu
+    with st.sidebar:
+        selected = option_menu(
+            menu_title=None,
+            options=['General Summary', 'Company Level Summary'],
+            icons=['house', 'person'],
+            default_index=0
+        )
+
+    # General Summary
+    if selected == 'General Summary':
+        st.title('General Summary')
+        st.dataframe(data.assign(View_Detail=lambda x: x['customerid'].apply(
+            lambda id: f'<a href="javascript:window.location=\'#company_level_summary\'" onclick="document.getElementById(\'company_level_summary\').scrollIntoView()">{id}</a>'))))
+
+    # Company Level Summary
+    elif selected == 'Company Level Summary':
+        st.title('Company Level Summary')
+        if 'customer_id' in st.session_state:
+            show_company_level_summary(st.session_state.customer_id)
+        else:
+            st.write("No customer selected.")
+
+if __name__ == "__main__":
+    main()
