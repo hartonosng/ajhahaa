@@ -1,5 +1,4 @@
 import streamlit as st
-from streamlit_option_menu import option_menu
 import pandas as pd
 
 # DataFrame Contoh
@@ -9,7 +8,7 @@ data = pd.DataFrame({
 })
 
 # Menambahkan kolom dengan link HTML
-data['View Detail'] = data['customerid'].apply(lambda x: f'<a href="javascript:void(0);" onclick="window.parent.streamlit.set('selected_customer_id', {x});window.parent.streamlit.set('page', 'Company Level Summary');">View Detail</a>')
+data['View Detail'] = data['customerid'].apply(lambda x: f'<a href="#!" onclick="window.parent.streamlit.set(\'selected_customer_id\', {x}); window.parent.streamlit.set(\'page\', \'Company Level Summary\');">View Detail</a>')
 
 # Inisialisasi session_state jika belum ada
 if 'page' not in st.session_state:
@@ -19,17 +18,12 @@ if 'selected_customer_id' not in st.session_state:
 
 st.title("Customer Dashboard")
 
-with st.sidebar:
-    selected = option_menu("Menu", ["General Summary", "Company Level Summary"], 
-                           icons=['list', 'list'], 
-                           menu_icon="cast", 
-                           default_index=0)
+# Menampilkan DataFrame dengan hyperlink
+st.subheader("General Summary")
+st.markdown(data.to_html(escape=False), unsafe_allow_html=True)
 
-if selected == "General Summary" or st.session_state.page == "General Summary":
-    st.subheader("General Summary")
-    st.markdown(data.to_html(escape=False), unsafe_allow_html=True)
-
-if selected == "Company Level Summary" or st.session_state.page == "Company Level Summary":
+# Handle redirection based on hyperlink click
+if st.session_state.page == "Company Level Summary":
     if st.session_state.selected_customer_id:
         customer_id = st.session_state.selected_customer_id
         st.subheader(f"Company Level Summary for Customer ID: {customer_id}")
