@@ -2,58 +2,38 @@ import streamlit as st
 from streamlit_option_menu import option_menu
 import pandas as pd
 
-# Contoh DataFrame
+# DataFrame Contoh
 data = pd.DataFrame({
     'customerid': [1, 2, 3],
-    'customername': ['Customer A', 'Customer B', 'Customer C']
+    'customername': ['Alice', 'Bob', 'Charlie']
 })
 
-# Halaman General Summary
-def general_summary():
-    st.title('General Summary')
+# Menambahkan kolom dengan link HTML
+data['View Detail'] = data['customerid'].apply(lambda x: f'<a href="javascript:void(0);" onclick="window.parent.streamlit.set('selected_customer_id', {x});window.parent.streamlit.set('page', 'Company Level Summary');">View Detail</a>')
 
-    # Tampilkan DataFrame dengan hyperlink
-    def view_detail_url(customerid):
-        return f'?customerid={customerid}'
+# Inisialisasi session_state jika belum ada
+if 'page' not in st.session_state:
+    st.session_state.page = "General Summary"
+if 'selected_customer_id' not in st.session_state:
+    st.session_state.selected_customer_id = None
 
-    # Menambah kolom 'View Detail'
-    data['View Detail'] = data['customerid'].apply(lambda x: f"[View Detail](?customerid={x})")
+st.title("Customer Dashboard")
 
-    st.dataframe(data)
+with st.sidebar:
+    selected = option_menu("Menu", ["General Summary", "Company Level Summary"], 
+                           icons=['list', 'list'], 
+                           menu_icon="cast", 
+                           default_index=0)
 
-# Halaman Company Level Summary
-def company_level_summary():
-    st.title('Company Level Summary')
-    
-    if 'customerid' in st.session_state:
-        customerid = st.session_state.customerid
-        st.write(f"Showing details for customer ID: {customerid}")
-        # Tambahkan logika untuk menampilkan detail customer di sini
+if selected == "General Summary" or st.session_state.page == "General Summary":
+    st.subheader("General Summary")
+    st.markdown(data.to_html(escape=False), unsafe_allow_html=True)
+
+if selected == "Company Level Summary" or st.session_state.page == "Company Level Summary":
+    if st.session_state.selected_customer_id:
+        customer_id = st.session_state.selected_customer_id
+        st.subheader(f"Company Level Summary for Customer ID: {customer_id}")
+        # Tampilkan informasi spesifik berdasarkan customer_id
+        st.write(f"Detail informasi untuk customer dengan ID {customer_id} akan ditampilkan di sini.")
     else:
-        st.write("No customer selected.")
-
-# Navigasi antara halaman
-def main():
-    with st.sidebar:
-        selected = option_menu(
-            menu_title="Menu",
-            options=["General Summary", "Company Level Summary"],
-            icons=["house", "file-person"],
-            default_index=0
-        )
-    
-    if selected == "General Summary":
-        general_summary()
-    elif selected == "Company Level Summary":
-        company_level_summary()
-
-if __name__ == '__main__':
-    main()
-
-# Fungsi untuk menangani query parameter
-def handle_query_params():
-    query_params = st.experimental_get_query_params()
-    if 'customerid' in query_params:
-        st.session_state.customerid = int(query_params['customerid'][0])
-
-handle_query_params()
+        st.write("Pilih customer untuk melihat detail.")
