@@ -1,27 +1,44 @@
-Sure, here's an explanation of each feature's definition and its impact on default risk in credit risk modeling:
+import streamlit as st
+import pandas as pd
+from streamlit.components.v1 import html
 
-1. **Revolver Curbal (Current Balance of Revolving Credit Accounts)**:
-   - **Definition**: This is the current outstanding balance on revolving credit accounts, such as credit cards, indicating the amount currently owed.
-   - **Impact on Default**: A higher revolver curbal suggests higher credit utilization, potentially indicating financial strain. High utilization rates correlate with increased default risk because they may indicate overreliance on credit and potential difficulty in making timely payments.
+# Sample DataFrame
+data = {
+    'Name': ['Alice', 'Bob', 'Charlie'],
+    'Age': [25, 30, 35],
+    'City': ['New York', 'San Francisco', 'Los Angeles']
+}
+df = pd.DataFrame(data)
 
-2. **Utilization (Ratio of Current Balance to Total Available Credit)**:
-   - **Definition**: Utilization is the ratio of the current balance on a credit account to the total credit limit available on that account.
-   - **Impact on Default**: Higher utilization rates indicate a borrower is using a larger portion of their available credit, potentially signaling financial stress. This increases default risk as it suggests limited available credit to handle emergencies or unexpected expenses.
+# Function to render the DataFrame as an HTML table with copy functionality
+def render_df_with_copy(df):
+    html_table = df.to_html(classes='table table-striped', index=False)
+    
+    copy_script = """
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const cells = document.querySelectorAll('td');
+        cells.forEach(cell => {
+            cell.addEventListener('click', function() {
+                const text = this.innerText;
+                navigator.clipboard.writeText(text).then(() => {
+                    console.log('Copied to clipboard:', text);
+                }).catch(err => {
+                    console.error('Failed to copy:', err);
+                });
+            });
+        });
+    });
+    </script>
+    """
+    
+    # Render HTML and JavaScript
+    html(f"""
+    <div>
+        {html_table}
+    </div>
+    {copy_script}
+    """)
 
-3. **Outstanding (Remaining Loan)**:
-   - **Definition**: This refers to the total amount of money still owed on a loan or credit account.
-   - **Impact on Default**: Larger outstanding balances indicate higher debt burdens. Borrowers with substantial debts relative to their income may struggle to meet payment obligations, increasing the likelihood of default.
-
-4. **Days Past Due (Number of Days Payments are Overdue)**:
-   - **Definition**: Days past due measures how late payments are on a loan or credit account, indicating the length of delinquency.
-   - **Impact on Default**: Higher days past due indicate a longer period of delinquency, reflecting poor payment history. Borrowers with a history of late payments are more likely to default as it signals financial instability and difficulty in meeting obligations.
-
-5. **Days Past Due on Interest (Number of Days Interest Payments are Overdue)**:
-   - **Definition**: This measures the number of days overdue specifically on interest payments.
-   - **Impact on Default**: Late payment of interest indicates financial distress and an inability to service debt obligations timely. It increases default risk as it shows the borrower may not have sufficient cash flow to cover interest expenses, affecting overall financial stability.
-
-6. **Transfer Amounts (In & Out)**:
-   - **Definition**: This refers to the volume of funds transferred into and out of accounts over a specified period.
-   - **Impact on Default**: Large and irregular transfer amounts may indicate financial instability or speculative behavior. It can impact default risk by suggesting the borrower may have unpredictable cash flows or engage in risky financial activities that could impair their ability to repay debts.
-
-These features are critical in assessing a borrower's creditworthiness and likelihood of default. Lenders use them to gauge financial health, payment behavior, and overall risk management capabilities of potential borrowers.
+st.write("### Click on a cell to copy its value:")
+render_df_with_copy(df)
