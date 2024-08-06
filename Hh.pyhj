@@ -1,0 +1,34 @@
+-- Contoh data dalam tabel goals
+-- creation_date: 2024-02-16
+-- tenure_months: 120 (10 tahun)
+
+WITH goals_with_end_date AS (
+    SELECT
+        goal_id,
+        creation_date,
+        tenure_months,
+        -- Menambahkan tenor dalam bulan ke tanggal pembuatan untuk mendapatkan tanggal akhir tenor
+        ADD_MONTHS(creation_date, tenure_months) AS end_date
+    FROM goals
+),
+
+remaining_tenure AS (
+    SELECT
+        goal_id,
+        creation_date,
+        tenure_months,
+        end_date,
+        -- Menghitung sisa tenor
+        CASE
+            WHEN end_date >= CURRENT_DATE THEN
+                -- Menghitung sisa tenor dalam bulan dari hari ini hingga tanggal akhir tenor
+                MONTHS_BETWEEN(end_date, CURRENT_DATE)
+            ELSE
+                -- Jika tenor sudah habis
+                0
+        END AS remaining_tenure_months
+    FROM goals_with_end_date
+)
+
+SELECT goal_id, creation_date, tenure_months, remaining_tenure_months
+FROM remaining_tenure;
