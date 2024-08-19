@@ -1,84 +1,83 @@
 import streamlit as st
 import shap
-import plotly.graph_objects as go
+import xgboost as xgb
+import pandas as pd
 import numpy as np
+import plotly.graph_objects as go
 
-# Example SHAP values (using a simple model)
-# Assuming `model` is your trained model and `X` is your dataset
+# Load example data
+X, y = shap.datasets.boston()
 
-# Generate a random dataset for example purposes
-X = np.random.rand(1, 10)  # 1 instance with 10 features
+# Train a model
+model = xgb.XGBRegressor().fit(X, y)
 
-# Generate SHAP values using a random forest (for example)
-explainer = shap.Explainer(lambda x: x.sum(axis=1, keepdims=True), X)
+# Explain the model's predictions using SHAP values
+explainer = shap.Explainer(model, X)
 shap_values = explainer(X)
 
-# Function to plot SHAP waterfall using Plotly
-def plot_shap_waterfall(shap_values, feature_names=None):
-    base_value = shap_values.base_values[0]
-    shap_values = shap_values.values[0]
+# Select the index of the instance you want to display
+index = 9  # For instance, you want to show SHAP values for index 9
 
-    # If feature names are not provided, generate generic names
-    if feature_names is None:
-        feature_names = [f"Feature {i+1}" for i in range(len(shap_values))]
+# Extract SHAP values for the selected instance
+shap_value = shap_values[index]
+base_value = shap_value.base_values
+feature_names = X.columns
+shap_values_instance = shap_value.values
 
-    # Sort SHAP values and feature names by absolute value of SHAP values
-    sorted_indices = np.argsort(np.abs(shap_values))[::-1]
-    shap_values = shap_values[sorted_indices]
-    feature_names = np.array(feature_names)[sorted_indices]
+# Sort the SHAP values by absolute magnitude
+sorted_indices = np.argsort(np.abs(shap_values_instance))[::-1]
+sorted_shap_values = shap_values_instance[sorted_indices]
+sorted_feature_names = feature_names[sorted_indices]
 
-    # Calculate cumulative sum to determine the flow
-    cumulative = np.cumsum(shap_values)
+# Calculate cumulative sum for the waterfall effect
+cumulative = np.cumsum(sorted_shap_values)
 
-    # Initialize figure
-    fig = go.Figure()
+# Create Plotly figure
+fig = go.Figure()
 
-    # Add bars for each SHAP value
-    for i in range(len(shap_values)):
-        fig.add_trace(go.Bar(
-            x=[feature_names[i]],
-            y=[shap_values[i]],
-            orientation='v',
-            marker=dict(color='red' if shap_values[i] < 0 else 'green'),
-            name=f"{feature_names[i]}",
-            showlegend=False
-        ))
-
-    # Add line for cumulative effect
-    fig.add_trace(go.Scatter(
-        x=feature_names,
-        y=cumulative,
-        mode='lines+markers',
-        marker=dict(color='blue'),
-        name='Cumulative effect'
+# Add bars for each SHAP value
+for i in range(len(sorted_shap_values)):
+    fig.add_trace(go.Bar(
+        x=[sorted_feature_names[i]],
+        y=[sorted_shap_values[i]],
+        orientation='v',
+        marker=dict(color='red' if sorted_shap_values[i] < 0 else 'green'),
+        name=f"{sorted_feature_names[i]}",
+        showlegend=False
     ))
 
-    # Add a horizontal line at the base value
-    fig.add_shape(
-        type="line",
-        x0=-0.5,
-        y0=base_value,
-        x1=len(feature_names)-0.5,
-        y1=base_value,
-        line=dict(color="black", width=2, dash="dash")
-    )
+# Add line for cumulative effect
+fig.add_trace(go.Scatter(
+    x=sorted_feature_names,
+    y=cumulative,
+    mode='lines+markers',
+    marker=dict(color='blue'),
+    name='Cumulative effect'
+))
 
-    # Update layout
-    fig.update_layout(
-        title="SHAP Waterfall Plot",
-        xaxis_title="Features",
-        yaxis_title="SHAP Value",
-        template="plotly_white",
-        showlegend=False
-    )
+# Add a horizontal line at the base value
+fig.add_shape(
+    type="line",
+    x0=-0.5,
+    y0=base_value,
+    x1=len(sorted_feature_names)-0.5,
+    y1=base_value,
+    line=dict(color="black", width=2, dash="dash")
+)
 
-    return fig
-
-# Streamlit app
-st.title("SHAP Waterfall Plot in Streamlit")
-
-# Plot SHAP waterfall plot with generic feature names
-shap_plot = plot_shap_waterfall(shap_values)
+# Update layout
+fig.update_layout(
+    title=f"SHAP Waterfall Plot for Instance {index}",
+    xaxis_title="Features",
+    yaxis_title="SHAP Value",
+    template="plotly_white",
+    showlegend=False,
+    margin=dict(l=20, r=20, t=40, b=20),
+    plot_bgcolor="rgba(0,0,0,0)",
+    paper_bgcolor="rgba(0,0,0,0)",
+    height=500
+)
 
 # Display the plot in Streamlit
-st.plotly_chart(shap_plot)
+st.title(f"SHAP Waterfall Plot for Instance {index}")
+st.plotly_chart(fig)
