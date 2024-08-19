@@ -1,62 +1,84 @@
-import Levenshtein
+import streamlit as st
+import shap
+import plotly.graph_objects as go
+import numpy as np
 
-# Extended list of values
-values = [
-    'aku', 'nomor rekening', '2000222', 'saldo', '1000000', 'nomor rekening', '23444', 'account number', '20009', 'nama', 'bambang', 'alamat', 'jl. kemang',
-    'nama', 'hartono', 'kode pos', '12730', 'phone number', '08123456789', 'amount', 'Rp239', 'bank', 'bca', 'email', 'bambang@gmail.com', 'jenis kelamin', 'pria'
-]
+# Example SHAP values (using a simple model)
+# Assuming `model` is your trained model and `X` is your dataset
 
-# Keywords dictionary
-keywords_dict = {
-    'account number': ['no rekening', 'account no'],
-    'name': ['name', 'nama'],
-    'amount': ['amount'],
-    'phone number': ['phone number', 'no hp'],
-    'email': ['email', 'e-mail']
-}
+# Generate a random dataset for example purposes
+X = np.random.rand(1, 10)  # 1 instance with 10 features
 
-def find_closest_matches(values, category, threshold_probability=0.8):
-    # Check if the category exists in the keywords dictionary
-    if category not in keywords_dict:
-        return []
+# Generate SHAP values using a random forest (for example)
+explainer = shap.Explainer(lambda x: x.sum(axis=1, keepdims=True), X)
+shap_values = explainer(X)
 
-    matched_values = []
-    matched_indices = set()
+# Function to plot SHAP waterfall using Plotly
+def plot_shap_waterfall(shap_values, feature_names=None):
+    base_value = shap_values.base_values[0]
+    shap_values = shap_values.values[0]
 
-    # Normalize the values to lower case
-    normalized_values = [value.lower() for value in values]
+    # If feature names are not provided, generate generic names
+    if feature_names is None:
+        feature_names = [f"Feature {i+1}" for i in range(len(shap_values))]
 
-    # Get the list of keywords for the specified category
-    keywords = keywords_dict[category]
+    # Sort SHAP values and feature names by absolute value of SHAP values
+    sorted_indices = np.argsort(np.abs(shap_values))[::-1]
+    shap_values = shap_values[sorted_indices]
+    feature_names = np.array(feature_names)[sorted_indices]
 
-    for keyword in keywords:
-        # Normalize the keyword
-        normalized_keyword = keyword.lower()
+    # Calculate cumulative sum to determine the flow
+    cumulative = np.cumsum(shap_values)
 
-        # Compute the similarity ratio for each value
-        similarities = [(Levenshtein.ratio(value.lower(), normalized_keyword), i) for i, value in enumerate(values)]
+    # Initialize figure
+    fig = go.Figure()
 
-        # Filter values based on the threshold probability
-        filtered_indices = [i for similarity, i in similarities if similarity >= threshold_probability]
+    # Add bars for each SHAP value
+    for i in range(len(shap_values)):
+        fig.add_trace(go.Bar(
+            x=[feature_names[i]],
+            y=[shap_values[i]],
+            orientation='v',
+            marker=dict(color='red' if shap_values[i] < 0 else 'green'),
+            name=f"{feature_names[i]}",
+            showlegend=False
+        ))
 
-        # Add the values following each matched keyword occurrence if not already added
-        for idx in filtered_indices:
-            if idx not in matched_indices and idx + 1 < len(values):
-                matched_value = values[idx + 1]
-                matched_values.append(matched_value)
-                matched_indices.add(idx)
+    # Add line for cumulative effect
+    fig.add_trace(go.Scatter(
+        x=feature_names,
+        y=cumulative,
+        mode='lines+markers',
+        marker=dict(color='blue'),
+        name='Cumulative effect'
+    ))
 
-    return matched_values
+    # Add a horizontal line at the base value
+    fig.add_shape(
+        type="line",
+        x0=-0.5,
+        y0=base_value,
+        x1=len(feature_names)-0.5,
+        y1=base_value,
+        line=dict(color="black", width=2, dash="dash")
+    )
 
-# Find and print the matched values for each category with a specified threshold probability
-matched_values_account = find_closest_matches(values, 'account number', threshold_probability=0.8)
-matched_values_name = find_closest_matches(values, 'name', threshold_probability=0.8)
-matched_values_amount = find_closest_matches(values, 'amount', threshold_probability=0.8)
-matched_values_phone = find_closest_matches(values, 'phone number', threshold_probability=0.8)
-matched_values_email = find_closest_matches(values, 'email', threshold_probability=0.8)
+    # Update layout
+    fig.update_layout(
+        title="SHAP Waterfall Plot",
+        xaxis_title="Features",
+        yaxis_title="SHAP Value",
+        template="plotly_white",
+        showlegend=False
+    )
 
-print("Account Numbers:", matched_values_account)
-print("Names:", matched_values_name)
-print("Amounts:", matched_values_amount)
-print("Phone Numbers:", matched_values_phone)
-print("Emails:", matched_values_email)
+    return fig
+
+# Streamlit app
+st.title("SHAP Waterfall Plot in Streamlit")
+
+# Plot SHAP waterfall plot with generic feature names
+shap_plot = plot_shap_waterfall(shap_values)
+
+# Display the plot in Streamlit
+st.plotly_chart(shap_plot)
