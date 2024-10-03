@@ -29,7 +29,10 @@ def random_negative_sampling(user_interactions, all_products, num_neg_samples=2)
     non_interacted = list(all_products - set(user_interactions))
     
     # Sample random negatives from non-interacted products
-    return list(np.random.choice(non_interacted, size=num_neg_samples, replace=False))
+    if len(non_interacted) > 0:
+        return list(np.random.choice(non_interacted, size=min(num_neg_samples, len(non_interacted)), replace=False))
+    else:
+        return []
 
 # Function to get hard negative samples based on product similarity
 def hard_negative_sampling(interacted_products, product_data, num_hard_neg_samples=1):
@@ -68,17 +71,17 @@ def sample_negatives(interacted_products, all_products, product_data, num_random
     # Combine both and return as a list (Polars-compatible)
     return random_negatives + hard_negatives
 
-# Step 4: Apply sampling for each user using 'with_columns'
-# First, group the interaction_data by customerid to get the list of interacted products for each user
+# Group the interaction_data by customerid to get the list of interacted products for each user
 interacted_products_per_user = interaction_data.groupby('customerid').agg(
-    pl.col('product_code').alias('interacted_products')
+    pl.col('product_code').apply(lambda x: x.to_list(), return_dtype=pl.List(pl.Utf8)).alias('interacted_products')
 )
 
-# Perform negative sampling
+# Create a column with negative samples using Polars-native operations
 negative_samples_df = interacted_products_per_user.with_columns(
     [
-        pl.col('interacted_products').apply(lambda interacted_products: sample_negatives(interacted_products, all_products, product_data), 
-                                            return_dtype=pl.List(pl.Utf8)).alias('negative_samples')
+        pl.struct(['interacted_products']).apply(
+            lambda row: sample_negatives(row['interacted_products'], all_products, product_data)
+        ).alias('negative_samples')
     ]
 )
 
