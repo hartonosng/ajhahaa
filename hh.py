@@ -29,7 +29,7 @@ def random_negative_sampling(user_interactions, all_products, num_neg_samples=2)
     non_interacted = list(all_products - set(user_interactions))
     
     # Sample random negatives from non-interacted products
-    return np.random.choice(non_interacted, size=num_neg_samples, replace=False)
+    return list(np.random.choice(non_interacted, size=num_neg_samples, replace=False))
 
 # Function to get hard negative samples based on product similarity
 def hard_negative_sampling(interacted_products, product_data, num_hard_neg_samples=1):
@@ -55,7 +55,7 @@ def hard_negative_sampling(interacted_products, product_data, num_hard_neg_sampl
         if len(candidates) > 0:
             hard_negatives.append(candidates[0][0])  # Get the most similar product as hard negative
             
-    return np.array(hard_negatives[:num_hard_neg_samples])
+    return list(hard_negatives[:num_hard_neg_samples])
 
 # Step 3: Combine Random and Hard Negative Sampling
 def sample_negatives(interacted_products, all_products, product_data, num_random_neg=2, num_hard_neg=1):
@@ -65,20 +65,20 @@ def sample_negatives(interacted_products, all_products, product_data, num_random
     # Hard negative samples
     hard_negatives = hard_negative_sampling(interacted_products, product_data, num_hard_neg)
     
-    # Combine both
-    return np.concatenate([random_negatives, hard_negatives])
+    # Combine both and return as a list (Polars-compatible)
+    return random_negatives + hard_negatives
 
 # Step 4: Apply sampling for each user using 'with_columns'
 # First, group the interaction_data by customerid to get the list of interacted products for each user
 interacted_products_per_user = interaction_data.groupby('customerid').agg(
-    pl.col('product_code').apply(lambda x: x.to_list(), return_dtype=pl.List(pl.Utf8))
+    pl.col('product_code').alias('interacted_products')
 )
 
 # Perform negative sampling
 negative_samples_df = interacted_products_per_user.with_columns(
     [
-        pl.col('product_code').apply(lambda interacted_products: sample_negatives(interacted_products, all_products, product_data), 
-                                     return_dtype=pl.List(pl.Utf8)).alias('negative_samples')
+        pl.col('interacted_products').apply(lambda interacted_products: sample_negatives(interacted_products, all_products, product_data), 
+                                            return_dtype=pl.List(pl.Utf8)).alias('negative_samples')
     ]
 )
 
