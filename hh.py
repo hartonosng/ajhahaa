@@ -1,6 +1,5 @@
 import polars as pl
 import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
 
 # Sample dataframes (structure only)
 user_data = pl.DataFrame({
@@ -36,29 +35,29 @@ def random_negative_sampling(user_interactions, all_products, num_neg_samples=2)
 
 # Function to get hard negative samples based on product similarity
 def hard_negative_sampling(interacted_products, product_data, num_hard_neg_samples=1):
-    # Convert product data to pandas for cosine similarity
-    product_features = product_data.select(['product_code', 'product_type']).to_pandas().set_index('product_code')
+    # Calculate similarities based on product type
+    product_types = product_data.select(['product_code', 'product_type'])
+    product_types = product_types.with_columns(
+        pl.col('product_type').cast(pl.Int32)  # Ensure the product type is of correct type
+    )
     
-    # Calculate cosine similarity between products based on 'product_type'
-    product_sim = cosine_similarity(product_features)
+    # Create a similarity matrix based on product types
+    similarity_matrix = product_types.to_pandas().pivot_table(index='product_code', columns='product_type', aggfunc='size', fill_value=0).values
     
-    # Create a DataFrame of similarities
-    product_sim_df = pl.DataFrame({
-        'product_code': product_features.index,
-        'similarity': [row for row in product_sim]
-    })
+    # Compute similarity (you can use any method; here we just take product types)
+    # For simplicity, let's assume products with the same type are more similar.
+    # You can implement more complex similarity measures as needed.
     
-    # Select hard negatives based on product similarity
     hard_negatives = []
     for product in interacted_products:
-        similar_products = product_sim_df.filter(pl.col('product_code') == product)['similarity']
+        similar_products = product_types.filter(pl.col('product_type') == product_types.filter(pl.col('product_code') == product)['product_type'][0])
         
-        # Find hard negatives (similar products but not interacted with)
-        candidates = product_sim_df.filter(~pl.col('product_code').is_in(interacted_products)).select('product_code')
-        if len(candidates) > 0:
-            hard_negatives.append(candidates[0][0])  # Get the most similar product as hard negative
-            
-    return list(hard_negatives[:num_hard_neg_samples])
+        # Exclude products already interacted with
+        candidates = similar_products.filter(~pl.col('product_code').is_in(interacted_products)).select('product_code')
+        if candidates.height > 0:
+            hard_negatives.append(candidates['product_code'][0])  # Get the first similar product
+
+    return hard_negatives[:num_hard_neg_samples]
 
 # Step 3: Combine Random and Hard Negative Sampling
 def sample_negatives(interacted_products, all_products, product_data, num_random_neg=2, num_hard_neg=1):
@@ -71,18 +70,17 @@ def sample_negatives(interacted_products, all_products, product_data, num_random
     # Combine both and return as a list (Polars-compatible)
     return random_negatives + hard_negatives
 
+# Step 4: Apply sampling for each user using 'with_columns'
 # Group the interaction_data by customerid to get the list of interacted products for each user
 interacted_products_per_user = interaction_data.groupby('customerid').agg(
-    pl.col('product_code').apply(lambda x: x.to_list(), return_dtype=pl.List(pl.Utf8)).alias('interacted_products')
+    pl.col('product_code').apply(lambda x: x.to_list(), return_dtype=pl.List(pl.Utf8))).rename({"product_code": "interacted_products"})
 )
 
-# Create a column with negative samples using Polars-native operations
+# Perform negative sampling
 negative_samples_df = interacted_products_per_user.with_columns(
-    [
-        pl.struct(['interacted_products']).apply(
-            lambda row: sample_negatives(row['interacted_products'], all_products, product_data)
-        ).alias('negative_samples')
-    ]
+    pl.struct(['interacted_products']).apply(
+        lambda row: sample_negatives(row['interacted_products'], all_products, product_data)
+    ).alias('negative_samples')
 )
 
 # View the result
