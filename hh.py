@@ -32,9 +32,16 @@ def random_negative_sampling(interacted_products, all_products, num_neg_samples=
 # Step 3: Function to get hard negative samples based on product similarity
 def hard_negative_sampling(interacted_products, product_data, num_hard_neg_samples=1):
     hard_negatives = []
+    
+    # Get the product types for the interacted products
+    product_types = product_data.filter(pl.col('product_code').is_in(interacted_products))
+    
     for product in interacted_products:
-        product_type = product_data.filter(pl.col('product_code') == product)['product_type'][0]
-        similar_candidates = product_data.filter((pl.col('product_type') == product_type) &
+        # Get the product type of the current product
+        product_type = product_types.filter(pl.col('product_code') == product)['product_type'].to_numpy()[0]
+        
+        # Get candidates that are of the same product type but not interacted with
+        similar_candidates = product_data.filter((pl.col('product_type') == product_type) & 
                                                   (~pl.col('product_code').is_in(interacted_products)))
         
         # Select the first candidate if available
@@ -56,9 +63,9 @@ interacted_products_per_user = interaction_data.groupby('customerid').agg(
 
 # Step 6: Generate negative samples for each user without using apply
 negative_samples = []
-for row in interacted_products_per_user.to_dicts():
-    customer_id = row['customerid']
-    interacted_products = row['interacted_products']
+for row in interacted_products_per_user.iter_rows(named=True):
+    customer_id = row.customerid
+    interacted_products = row.interacted_products
     neg_samples = sample_negatives(interacted_products, all_products, product_data)
     negative_samples.append((customer_id, neg_samples))
 
