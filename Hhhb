@@ -1,0 +1,36 @@
+import polars as pl
+import os
+
+# Tentukan direktori tempat file Parquet berada
+directory = "/path/to/parquet/files"
+
+# Ambil semua file dengan ekstensi .parquet di dalam direktori
+parquet_files = [f for f in os.listdir(directory) if f.endswith(".parquet")]
+
+# List untuk menampung hasil mapping
+mapping_data = []
+
+# Loop melalui setiap file dan ambil customerid dan customername beserta path-nya
+for file in parquet_files:
+    file_path = os.path.join(directory, file)
+    
+    # Load file parquet
+    df = pl.read_parquet(file_path)
+    
+    # Ambil kolom customerid, customername dan tambahkan kolom dengan path file
+    mapping = df.select(["customerid", "customername"]).with_columns(
+        pl.lit(os.path.abspath(file_path)).alias("file_path")
+    )
+    
+    # Append ke list mapping_data
+    mapping_data.append(mapping)
+
+# Gabungkan semua DataFrame menjadi satu DataFrame besar
+final_mapping_df = pl.concat(mapping_data)
+
+# Save hasil mapping ke file parquet atau CSV
+final_mapping_df.write_parquet("customerid_customername_file_mapping.parquet")
+# Atau simpan ke CSV
+final_mapping_df.write_csv("customerid_customername_file_mapping.csv")
+
+print(final_mapping_df)
